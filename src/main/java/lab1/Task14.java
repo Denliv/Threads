@@ -79,7 +79,7 @@ public class Task14 {
                             try {
                                 while (queue.tasks.size() == 0) {
                                     if (!condition.await(100L, TimeUnit.MILLISECONDS)) {
-                                        break;
+                                        return;
                                     }
                                 }
                                 queue.get().execute();

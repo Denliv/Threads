@@ -80,7 +80,7 @@ public class Task13 {
                             try {
                                 while (queue.data.size() == 0) {
                                     if (!condition.await(100L, TimeUnit.MILLISECONDS)) {
-                                        break;
+                                        return;
                                     }
                                 }
                                 Data data = queue.get();
