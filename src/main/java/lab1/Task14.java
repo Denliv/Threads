@@ -1,69 +1,68 @@
 package lab1;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-class Data {
-    private final int[] data;
+class Task implements Executable {
+    Runnable runnable;
 
-    public Data(int[] data) {
-        this.data = data;
+    public Task(Runnable runnable) {
+        this.runnable = runnable;
     }
 
-    public int[] get() {
-        return data;
+    @Override
+    public void execute() {
+        runnable.run();
     }
 }
 
-class DataQueue {
-    LinkedList<Data> data;
+class TaskQueue {
+    LinkedList<Task> tasks;
 
-    public DataQueue() {
-        this.data = new LinkedList<>();
+    public TaskQueue() {
+        tasks = new LinkedList<>();
     }
 
-    public DataQueue(LinkedList<Data> data) {
-        this.data = data;
+    public TaskQueue(LinkedList<Task> tasks) {
+        this.tasks = tasks;
     }
 
-    public synchronized void add(Data data) {
-        this.data.addLast(data);
+    public synchronized void add(Task task) {
+        this.tasks.addLast(task);
     }
 
-    public synchronized Data get() {
+    public synchronized Task get() {
         try {
-            return this.data.removeFirst();
+            return this.tasks.removeFirst();
         } catch (NoSuchElementException ex) {
             return null;
         }
     }
 }
 
-public class Task13 {
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+public class Task14 {
+    public static void main(String[] args) throws InterruptedException {
+        TaskQueue queue = new TaskQueue();
+        ReentrantLock locker = new ReentrantLock();
+        Condition condition = locker.newCondition();
         Scanner sc = new Scanner(System.in);
         int writersNum = sc.nextInt();
         int readersNum = sc.nextInt();
-        ExecutorService writersPool = Executors.newFixedThreadPool(writersNum);
-        ExecutorService readersPool = Executors.newFixedThreadPool(readersNum);
-        DataQueue queue = new DataQueue();
-        ReentrantLock locker = new ReentrantLock();
-        Condition condition = locker.newCondition();
+        ThreadPoolExecutor writersPool = new ThreadPoolExecutor(writersNum, writersNum, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ThreadPoolExecutor readersPool = new ThreadPoolExecutor(readersNum, readersNum, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
         Thread writersPoolFill = new Thread(() -> {
             for (int i = 0; i < 100; ++i) {
                 writersPool.execute(() -> {
                     locker.lock();
                     try {
-                        queue.add(new Data(new int[]{1, 2, 3}));
-                        System.out.println("Added 1, 2, 3");
+                        queue.add(new Task(() -> System.out.println("       Read")));
+                        System.out.println("Write");
                         condition.signal();
                     } finally {
                         locker.unlock();
@@ -72,19 +71,18 @@ public class Task13 {
             }
         });
         Thread readersPoolFill = new Thread(() -> {
-            for (int i = 0; i < readersNum; ++i) {
+            for (int i = 0; i < readersPool.getMaximumPoolSize(); ++i) {
                 readersPool.execute(() -> {
                     try {
                         while (true) {
                             locker.lock();
                             try {
-                                while (queue.data.size() == 0) {
+                                while (queue.tasks.size() == 0) {
                                     if (!condition.await(100L, TimeUnit.MILLISECONDS)) {
                                         break;
                                     }
                                 }
-                                Data data = queue.get();
-                                System.out.println("        Printed " + Arrays.toString(data.get()));
+                                queue.get().execute();
                             } finally {
                                 locker.unlock();
                             }
@@ -95,7 +93,6 @@ public class Task13 {
                 });
             }
         });
-
         writersPoolFill.start();
         readersPoolFill.start();
         writersPoolFill.join();
@@ -103,5 +100,6 @@ public class Task13 {
 
         writersPool.shutdown();
         readersPool.shutdown();
+        assert queue.tasks.isEmpty();
     }
 }
