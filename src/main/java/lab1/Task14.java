@@ -11,6 +11,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 class Task implements Executable {
     Runnable runnable;
+    int number = 0;
+    int stageNumber = 1;
 
     public Task(Runnable runnable) {
         this.runnable = runnable;
@@ -75,6 +77,7 @@ public class Task14 {
                 readersPool.execute(() -> {
                     try {
                         while (true) {
+                            Task currentTask;
                             locker.lock();
                             try {
                                 while (queue.tasks.size() == 0) {
@@ -82,10 +85,11 @@ public class Task14 {
                                         return;
                                     }
                                 }
-                                queue.get().execute();
+                                currentTask = queue.get();
                             } finally {
                                 locker.unlock();
                             }
+                            currentTask.execute();
                         }
                     } catch (Exception ignored) {
 
