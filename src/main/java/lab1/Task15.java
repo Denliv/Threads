@@ -71,42 +71,55 @@ public class Task15 {
         Scanner sc = new Scanner(System.in);
         int writersNum = sc.nextInt();
         int readersNum = sc.nextInt();
-        ThreadPoolExecutor writersPool = new ThreadPoolExecutor(writersNum, writersNum, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-        ThreadPoolExecutor readersPool = new ThreadPoolExecutor(readersNum, readersNum, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ThreadPoolExecutor writersPool = new ThreadPoolExecutor(writersNum, Integer.MAX_VALUE, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
+        ThreadPoolExecutor readersPool = new ThreadPoolExecutor(readersNum, Integer.MAX_VALUE, 30L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
 
         Thread watcher = new Thread(
                 () -> {
-                    try {
-                        Thread.sleep(5);
-                        List<WatcherInfo> tempList;
-                        watcherLocker.lock();
+                    for (/*int i = 0; i < 100; ++i*/;;) {
                         try {
-                            tempList = new ArrayList<>(watcherList);
-                        } finally {
-                            watcherLocker.unlock();
+                            Thread.sleep(2);
+                            List<WatcherInfo> tempList;
+                            watcherLocker.lock();
+                            try {
+                                tempList = new ArrayList<>(watcherList);
+                            } finally {
+                                watcherLocker.unlock();
+                            }
+                            StringBuilder tempString = new StringBuilder("WATCHER_INFO:\n");
+                            if (tempList.isEmpty()) {
+                                tempString.append("EMPTY");
+                            }
+                            else {
+                                tempList.forEach(info -> tempString.append(info.name).append("info: ").append(info.number).append("/").append(info.stageNumber).append("\n"));
+                            }
+                            System.out.println(tempString);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
                         }
-                        tempList.forEach(info -> System.out.println(info.name + "info: " + info.number + "/" + info.stageNumber));
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
                     }
-
                 }
         );
         Thread writersPoolFill = new Thread(() -> {
-            for (int i = 0; i < 100; ++i) {
+            for (/*int i = 0; i < 100; ++i*/;;) {
                 writersPool.execute(() -> {
                     locker.lock();
                     try {
                         queue.add(
                                 new TaskList(
                                         new LinkedList<>(
-                                                List.of(new Task(() -> System.out.println("       Read "))))
+                                                List.of(new Task(() -> System.out.println("       Read"))))
                                 )
                         );
                         System.out.println("Write");
                         condition.signal();
                     } finally {
                         locker.unlock();
+                    }
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
                     }
                 });
             }
@@ -136,6 +149,7 @@ public class Task15 {
                                 watcherLocker.unlock();
                             }
                             currentTask.execute();
+                            Thread.sleep(1);
                             watcherLocker.lock();
                             try {
                                 watcherList.remove(info);
