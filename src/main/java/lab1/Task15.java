@@ -12,10 +12,20 @@ class TaskList implements Executable {
 
     public TaskList(LinkedList<Task> tasks) {
         this.tasks = new LinkedList<>();
-        for (int i = 0; i < tasks.size(); ++i) {
+        for (int i = 1; i <= tasks.size(); ++i) {
             Task currentTask = tasks.getFirst();
             currentTask.number = i;
             currentTask.stageNumber = tasks.size();
+            this.tasks.addLast(currentTask);
+        }
+    }
+
+    public TaskList(Task task, int count) {
+        this.tasks = new LinkedList<>();
+        for (int i = 1; i <= count; ++i) {
+            Task currentTask = new Task(task.runnable);
+            currentTask.number = i;
+            currentTask.stageNumber = count;
             this.tasks.addLast(currentTask);
         }
     }
@@ -106,10 +116,11 @@ public class Task15 {
                     locker.lock();
                     try {
                         queue.add(
-                                new TaskList(
+                                /*new TaskList(
                                         new LinkedList<>(
                                                 List.of(new Task(() -> System.out.println("       Read"))))
-                                )
+                                )*/
+                                new TaskList(new Task(() -> System.out.println("       Read")), (int)(Math.random() * 5 + 1))
                         );
                         System.out.println("Write");
                         condition.signal();
